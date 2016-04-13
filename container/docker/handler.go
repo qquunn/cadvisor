@@ -33,6 +33,8 @@ import (
 	"github.com/opencontainers/runc/libcontainer/cgroups"
 	cgroupfs "github.com/opencontainers/runc/libcontainer/cgroups/fs"
 	libcontainerconfigs "github.com/opencontainers/runc/libcontainer/configs"
+	"github.com/golang/glog"
+	"github.com/docker/docker/pkg/devicemapper"
 )
 
 const (
@@ -59,6 +61,9 @@ type dockerContainerHandler struct {
 	storageDriver    storageDriver
 	fsInfo           fs.FsInfo
 	rootfsStorageDir string
+
+	// if device mapper
+	rootfsStorageDevice string
 
 	// Time at which this container was created.
 	creationTime time.Time
@@ -179,6 +184,7 @@ func newDockerContainerHandler(
 	}
 	handler.creationTime = ctnr.Created
 	handler.pid = ctnr.State.Pid
+	handler.rootfsStorageDevice = ctnr.GraphDriver.Data.DeviceName
 
 	// Add the name and bare ID as aliases of the container.
 	handler.aliases = append(handler.aliases, strings.TrimPrefix(ctnr.Name, "/"), id)
@@ -307,6 +313,8 @@ func (self *dockerContainerHandler) getFsStats(stats *info.ContainerStats) error
 	}
 	switch self.storageDriver {
 	case aufsStorageDriver, overlayStorageDriver, zfsStorageDriver:
+	case devicemapperStorageDriver:
+		return self.getDevicemapperFsStats(stats)
 	default:
 		return nil
 	}
@@ -341,6 +349,42 @@ func (self *dockerContainerHandler) getFsStats(stats *info.ContainerStats) error
 
 	return nil
 }
+
+func (self *dockerContainerHandler) getDevicemapperFsStats(stats *info.ContainerStats) error {
+	deviceInfo, err := fs.GetMapperDevice(path.Join("/dev/mapper/", self.rootfsStorageDevice))
+	if err != nil {
+		return err
+	}
+
+	var (
+		limit  uint64
+		used uint64
+		fsType string
+	)
+
+	fsType = fs.DeviceMapper.String()
+
+	fsStat := info.FsStats{Device: deviceInfo.Device, Type: fsType}
+
+	_, _, _, params, err := devicemapper.GetStatus(self.rootfsStorageDevice)
+	if err == nil {
+		fmt.Sscanf(params, "%d %d", &used, &limit)
+
+		limit *= 512
+		fsStat.Limit = limit
+
+		used *= 512
+		fsStat.BaseUsage, fsStat.Usage = used, used
+	}else {
+		glog.Error("devicemapper.GetStatus", err)
+	}
+
+	glog.Infof("DevicemapperFsStats= %+v", fsStat)
+	stats.Filesystem = append(stats.Filesystem, fsStat)
+
+	return nil
+}
+
 
 // TODO(vmarmol): Get from libcontainer API instead of cgroup manager when we don't have to support older Dockers.
 func (self *dockerContainerHandler) GetStats() (*info.ContainerStats, error) {

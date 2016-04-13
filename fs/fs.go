@@ -344,6 +344,18 @@ func minor(devNumber uint64) uint {
 	return uint((devNumber & 0xff) | ((devNumber >> 12) & 0xfff00))
 }
 
+func GetMapperDevice(dir string) (*DeviceInfo, error) {
+	buf := new(syscall.Stat_t)
+	err := syscall.Stat(dir, buf)
+	if err != nil {
+		return nil, fmt.Errorf("stat failed on %s with error: %s", dir, err)
+	}
+	major := major(buf.Dev)
+	minor := minor(buf.Dev)
+
+	return &DeviceInfo{dir, major, minor}, nil
+}
+
 func (self *RealFsInfo) GetDirFsDevice(dir string) (*DeviceInfo, error) {
 	buf := new(syscall.Stat_t)
 	err := syscall.Stat(dir, buf)

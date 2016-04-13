@@ -316,7 +316,7 @@ function drawOverallUsage(elementId, machineInfo, containerInfo) {
 	}
 
 	var numGauges = gauges.length;
-	if (cur.filesystem) {
+	if (cur.filesystem &&  window.cadvisor.fsUsage) {
 		for (var i = 0; i < cur.filesystem.length; i++) {
 			var data = cur.filesystem[i];
 			var totalUsage = Math.floor((data.usage * 100.0) / data.capacity);

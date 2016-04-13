@@ -288,6 +288,8 @@ type Container struct {
 	RestartCount int `json:"RestartCount,omitempty" yaml:"RestartCount,omitempty"`
 
 	AppArmorProfile string `json:"AppArmorProfile,omitempty" yaml:"AppArmorProfile,omitempty"`
+
+	GraphDriver *GraphDriver    `json:"GraphDriver,omitempty" yaml:"GraphDriver,omitempty"`
 }
 
 // RenameContainerOptions specify parameters to the RenameContainer function.
@@ -509,6 +511,17 @@ func (c *Client) StartContainer(id string, hostConfig *HostConfig) error {
 	}
 	resp.Body.Close()
 	return nil
+}
+
+type GraphDriver struct {
+	Name string  `json:"Name,omitempty" yaml:"Name,omitempty"`
+	Data* GraphDriverData  `json:"Data,omitempty" yaml:"Data,omitempty"`
+}
+
+type GraphDriverData struct {
+	DeviceId string  `json:"DeviceId,omitempty" yaml:"DeviceId,omitempty"`
+	DeviceName string  `json:"DeviceName,omitempty" yaml:"DeviceName,omitempty"`
+	DeviceSize string  `json:"DeviceSize,omitempty" yaml:"DeviceSize,omitempty"`
 }
 
 // StopContainer stops a container, killing it after the given timeout (in
