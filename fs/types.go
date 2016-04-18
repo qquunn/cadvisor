@@ -80,4 +80,7 @@ type FsInfo interface {
 
 	// Returns the mountpoint associated with a particular device.
 	GetMountpointForDevice(device string) (string, error)
+
+	GetDiskStatsByDeviceName(deviceName string) (DiskStats, error)
+
 }

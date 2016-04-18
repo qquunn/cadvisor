@@ -58,6 +58,8 @@ type RealFsInfo struct {
 	labels map[string]string
 
 	dmsetup dmsetupClient
+
+	dockerPartitionBlockSize uint
 }
 
 type Context struct {
@@ -160,6 +162,13 @@ func (self *RealFsInfo) addDockerImagesLabel(context Context) {
 	if err != nil {
 		glog.Warningf("Could not get Docker devicemapper device: %v", err)
 	}
+
+
+	if dockerPartition != nil {
+		self.dockerPartitionBlockSize = dockerPartition.blockSize
+	}
+
+
 	if len(dockerDev) > 0 && dockerPartition != nil {
 		self.partitions[dockerDev] = *dockerPartition
 		self.labels[LabelDockerImages] = dockerDev
@@ -238,6 +247,7 @@ func (self *RealFsInfo) GetFsInfoForPath(mountSet map[string]struct{}) ([]Fs, er
 	filesystems := make([]Fs, 0)
 	deviceSet := make(map[string]struct{})
 	diskStatsMap, err := getDiskStatsMap("/proc/diskstats")
+
 	if err != nil {
 		return nil, err
 	}
@@ -270,11 +280,27 @@ func (self *RealFsInfo) GetFsInfoForPath(mountSet map[string]struct{}) ([]Fs, er
 					Minor:  uint(partition.minor),
 				}
 				fs.DiskStats = diskStatsMap[device]
+
 				filesystems = append(filesystems, fs)
 			}
 		}
 	}
+
 	return filesystems, nil
+}
+
+func (self *RealFsInfo) GetDiskStatsByDeviceName(device string) (DiskStats, error) {
+
+	diskStatsMap, err := getDiskStatsMap("/proc/diskstats")
+
+	if err != nil {
+		return DiskStats{}, err
+	}
+
+	diskStats := diskStatsMap[device]
+
+
+	return diskStats, nil
 }
 
 var partitionRegex = regexp.MustCompile(`^(?:(?:s|xv)d[a-z]+\d*|dm-\d+)$`)

@@ -471,6 +471,7 @@ type FsStats struct {
 	// last update of this field.  This can provide an easy measure of both
 	// I/O completion time and the backlog that may be accumulating.
 	WeightedIoTime uint64 `json:"weighted_io_time"`
+
 }
 
 type ContainerStats struct {
