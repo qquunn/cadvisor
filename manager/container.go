@@ -77,6 +77,8 @@ type containerData struct {
 
 	// Runs custom metric collectors.
 	collectorManager collector.CollectorManager
+
+	manager *manager
 }
 
 // jitter returns a time.Duration between duration and duration + maxFactor * duration,
@@ -303,7 +305,7 @@ func (c *containerData) GetProcessList(cadvisorContainer string, inHostNamespace
 	return processes, nil
 }
 
-func newContainerData(containerName string, memoryCache *memory.InMemoryCache, handler container.ContainerHandler, loadReader cpuload.CpuLoadReader, logUsage bool, collectorManager collector.CollectorManager, maxHousekeepingInterval time.Duration, allowDynamicHousekeeping bool) (*containerData, error) {
+func newContainerData(containerName string, memoryCache *memory.InMemoryCache, handler container.ContainerHandler, loadReader cpuload.CpuLoadReader, logUsage bool, collectorManager collector.CollectorManager, maxHousekeepingInterval time.Duration, allowDynamicHousekeeping bool, m *manager) (*containerData, error) {
 	if memoryCache == nil {
 		return nil, fmt.Errorf("nil memory storage")
 	}
@@ -326,6 +328,7 @@ func newContainerData(containerName string, memoryCache *memory.InMemoryCache, h
 		loadAvg:                  -1.0, // negative value indicates uninitialized.
 		stop:                     make(chan bool, 1),
 		collectorManager:         collectorManager,
+		manager : m,
 	}
 	cont.info.ContainerReference = ref
 
@@ -501,6 +504,9 @@ func (c *containerData) updateStats() error {
 	if stats == nil {
 		return statsErr
 	}
+
+	c.updateBindingCpuStats(stats)
+
 	if c.loadReader != nil {
 		// TODO(vmarmol): Cache this path.
 		path, err := c.handler.GetCgroupPath("cpu")
@@ -552,6 +558,55 @@ func (c *containerData) updateStats() error {
 		return statsErr
 	}
 	return customStatsErr
+}
+
+func (c *containerData) updateBindingCpuStats(stats *info.ContainerStats) {
+	cpuNumbers := getCpuNumbers(c.info.Spec.Cpu.Mask, c.manager.machineInfo.NumCores)
+	cpusStat, err := info.ReadProcCpuStat()
+	if err == nil {
+		stats.Cpu.Usage.BindingCpu = cpusStat.FindCpuStatsByNumber(cpuNumbers)
+	}else {
+		glog.Error("parse cpu stat", err)
+	}
+}
+
+func getCpuNumbers(mask string, totalCpu int) []int {
+	result := []int {}
+	if mask == "" {
+		addRange(&result, 0, totalCpu - 1)
+	}else {
+		sections := strings.Split(mask, ",")
+		for _, section := range sections {
+			if strings.Contains(section, "-"){
+				ranges := strings.Split(section, "-")
+
+				min, err := strconv.Atoi(ranges[0])
+				max, err2 := strconv.Atoi(ranges[1])
+
+				if(err == nil && err2 == nil){
+					addRange(&result, min, max)
+				}else {
+					fmt.Print("parse cpuset ", err, err2)
+				}
+
+			}else {
+				i, err := strconv.Atoi(section)
+				if err == nil {
+					result = append(result, i)
+				}else {
+					fmt.Print("parse cpuset ", err)
+				}
+			}
+		}
+	}
+
+	return result
+}
+
+func addRange(numbers *[]int, min int, max int) {
+	for i := min ; i <= max; i++ {
+		*numbers = append(*numbers, i)
+	}
 }
 
 func (c *containerData) updateCustomStats() (map[string][]info.MetricVal, error) {

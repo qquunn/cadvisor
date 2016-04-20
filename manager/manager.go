@@ -777,7 +777,7 @@ func (m *manager) createContainer(containerName string) error {
 	}
 
 	logUsage := *logCadvisorUsage && containerName == m.cadvisorContainer
-	cont, err := newContainerData(containerName, m.memoryCache, handler, m.loadReader, logUsage, collectorManager, m.maxHousekeepingInterval, m.allowDynamicHousekeeping)
+	cont, err := newContainerData(containerName, m.memoryCache, handler, m.loadReader, logUsage, collectorManager, m.maxHousekeepingInterval, m.allowDynamicHousekeeping, m)
 	if err != nil {
 		return err
 	}

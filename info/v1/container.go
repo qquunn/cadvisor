@@ -263,6 +263,20 @@ type LoadStats struct {
 	NrIoWait uint64 `json:"nr_io_wait"`
 }
 
+type CpuStat struct {
+	Name string `json:"name"`
+	User uint64 `json:"user"`
+	Nice uint64 `json:"nice"`
+	System uint64 `json:"system"`
+	Idle uint64 `json:"idle"`
+	Iowait uint64 `json:"io_wait"`
+	Irq uint64 `json:"irq"`
+	Softirq uint64 `json:"soft_irq"`
+	Steal uint64 `json:"steal"`
+	Guest uint64 `json:"guest"`
+	GuestNice uint64 `json:"guest_nice"`
+}
+
 // CPU usage time statistics.
 type CpuUsage struct {
 	// Total CPU usage.
@@ -280,6 +294,8 @@ type CpuUsage struct {
 	// Time spent in kernel space.
 	// Unit: nanoseconds
 	System uint64 `json:"system"`
+
+	BindingCpu []CpuStat `json:"binding_cpu,omitempty"`
 }
 
 // All CPU usage metrics are cumulative from the creation of the container
